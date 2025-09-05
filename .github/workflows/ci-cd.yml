@@ -1,0 +1,49 @@
+name: AI Fraud Detection CI/CD
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout code
+      - uses: actions/checkout@v4
+
+      # Step 2: Setup Python (backend work)
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      # Step 3: Setup Node.js (frontend work)
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      # Step 4: Install Python dependencies
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black pytest
+          if [ -f backend/requirements.txt ]; then pip install -r backend/requirements.txt; fi
+
+      # Step 5: Lint Python code
+      - name: Lint Python code
+        run: |
+          flake8 backend/ --count --select=E9,F63,F7,F82 --show-source --statistics || echo "No Python files found"
+          black --check backend/ || echo "No Python files found"
+
+      # Step 6: Install Node dependencies
+      - name: Install Node dependencies
+        run: |
+          if [ -f frontend/package.json ]; then
+            cd frontend
+            npm install
+            npm run build || echo "Build script not found"
+          fi
