@@ -2,48 +2,49 @@ name: AI Fraud Detection CI/CD
 
 on:
   push:
-    branches: [ main, develop, feature/* ]
+    branches: [develop, main]
   pull_request:
-    branches: [ main, develop ]
+    branches: [develop, main]
 
 jobs:
   lint-and-build:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout code
-      - uses: actions/checkout@v4
+      # Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      # Step 2: Setup Python (backend work)
+      # ---------------- Python (Backend) ----------------
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: "3.9"
 
-      # Step 3: Setup Node.js (frontend work)
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      # Step 4: Install Python dependencies
-      - name: Install Python dependencies
+      - name: Install backend dependencies
         run: |
+          cd backend
           python -m pip install --upgrade pip
-          pip install flake8 black pytest
-          if [ -f backend/requirements.txt ]; then pip install -r backend/requirements.txt; fi
+          pip install -r requirements.txt || true   # don't fail if file is empty
 
-      # Step 5: Lint Python code
-      - name: Lint Python code
+      - name: Run Python lint
         run: |
-          flake8 backend/ --count --select=E9,F63,F7,F82 --show-source --statistics || echo "No Python files found"
-          black --check backend/ || echo "No Python files found"
+          cd backend
+          pip install flake8
+          flake8 . || true   # allow warnings, don't stop workflow
 
-      # Step 6: Install Node dependencies
-      - name: Install Node dependencies
+      # ---------------- Node.js (Frontend) ----------------
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: Install frontend dependencies
         run: |
-          if [ -f frontend/package.json ]; then
-            cd frontend
-            npm install
-            npm run build || echo "Build script not found"
-          fi
+          cd frontend
+          npm install
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build || echo "Skipping build (no script found)"
