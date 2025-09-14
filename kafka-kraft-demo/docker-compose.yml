@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  kafka:
+    image: bitnami/kafka:latest
+    container_name: kafka
+    ports:
+      - "9092:9092"   # Expose broker for apps running on host
+      - "9093:9093"   # Internal controller communication
+    environment:
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      # Unique broker/controller ID
+      - KAFKA_CFG_NODE_ID=0
+      # Run both broker + controller roles (KRaft mode)
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      # Listener configs
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      # IMPORTANT: Use container name for advertised listeners (not localhost)
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+    volumes:
+      - kafka-data:/bitnami/kafka
+
+volumes:
+  kafka-data:

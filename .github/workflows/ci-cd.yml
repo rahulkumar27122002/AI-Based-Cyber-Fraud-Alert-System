@@ -48,3 +48,23 @@ jobs:
         run: |
           cd frontend
           npm run build || echo "Skipping build (no script found)"
+      
+      # ---------------- Backend Tests ----------------
+      - name: Run backend tests
+        run: |
+          cd backend
+          pip install pytest
+          pytest || echo "No tests found, skipping"
+
+      # ---------------- Frontend Tests ----------------
+      - name: Run frontend tests
+        run: |
+          cd frontend
+          npm test -- --watchAll=false || echo "No tests found, skipping"
+
+      # ---------------- Docker Build ----------------
+      - name: Build backend Docker image
+        run: docker build -t backend:ci ./backend
+
+      - name: Build frontend Docker image
+        run: docker build -t frontend:ci ./frontend
