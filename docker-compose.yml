@@ -10,18 +10,15 @@ services:
       - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
-      - DATABASE_URL=postgresql://user:password@db:5432/mydb
+      - MONGO_URL=mongodb://user:password@db:27017/mydb?authSource=admin
     depends_on:
       - db
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 20s
-    # For development you can mount the code:
-    # volumes:
-    #   - ./backend:/app
 
   frontend:
     build:
@@ -29,33 +26,34 @@ services:
       dockerfile: Dockerfile
     container_name: ai_frontend
     ports:
-      - "3000:80"   # host:container (access frontend at http://localhost:3000)
+      - "3000:80"
     depends_on:
       - backend
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost"]
+      test: ["CMD-SHELL", "curl -f http://localhost || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 20s
 
   db:
-    image: postgres:15
+    image: mongo:6
     container_name: ai_db
     restart: always
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: mydb
+      MONGO_INITDB_ROOT_USERNAME: user
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: mydb
     ports:
-      - "5432:5432"
+      - "27017:27017"
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - db-data:/data/db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d mydb"]
+      test: ["CMD-SHELL", "mongosh --quiet --username user --password password --authenticationDatabase admin --eval 'db.adminCommand({ping:1})' || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
 volumes:
   db-data:

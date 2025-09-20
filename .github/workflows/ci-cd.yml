@@ -10,8 +10,22 @@ jobs:
   lint-and-build:
     runs-on: ubuntu-latest
 
+    # ---------------- Add MongoDB service ----------------
+    services:
+      mongodb:
+        image: mongo:6
+        env:
+          MONGO_INITDB_ROOT_USERNAME: user
+          MONGO_INITDB_ROOT_PASSWORD: password
+          MONGO_INITDB_DATABASE: mydb
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --username user --password password --authenticationDatabase admin --eval 'db.adminCommand({ping:1})'"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+
     steps:
-      # Checkout code
+      # ---------------- Checkout ----------------
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -25,13 +39,13 @@ jobs:
         run: |
           cd backend
           python -m pip install --upgrade pip
-          pip install -r requirements.txt || true   # don't fail if file is empty
+          pip install -r requirements.txt || true
 
       - name: Run Python lint
         run: |
           cd backend
           pip install flake8
-          flake8 . || true   # allow warnings, don't stop workflow
+          flake8 . || true
 
       # ---------------- Node.js (Frontend) ----------------
       - name: Set up Node.js
@@ -48,9 +62,19 @@ jobs:
         run: |
           cd frontend
           npm run build || echo "Skipping build (no script found)"
-      
+
+      # ---------------- Wait for MongoDB ----------------
+      - name: Wait for Mongo
+        run: |
+          for i in `seq 1 20`; do
+            nc -z localhost 27017 && echo "Mongo up" && break
+            echo "Waiting for mongo..." && sleep 2
+          done
+
       # ---------------- Backend Tests ----------------
       - name: Run backend tests
+        env:
+          MONGO_URL: mongodb://user:password@localhost:27017/mydb?authSource=admin
         run: |
           cd backend
           pip install pytest

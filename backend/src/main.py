@@ -2,7 +2,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import os
-import psycopg2  # add psycopg2-binary to requirements.txt
+from motor.motor_asyncio import AsyncIOMotorClient  # 👈 use Mongo instead of psycopg2
 
 app = FastAPI()
 
@@ -15,6 +15,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ---------------- MongoDB ----------------
+MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017/mydb")
+
+@app.on_event("startup")
+async def startup_db_client():
+    app.mongodb_client = AsyncIOMotorClient(MONGO_URL)
+    app.database = app.mongodb_client.get_default_database()
+
+@app.on_event("shutdown")
+async def shutdown_db_client():
+    app.mongodb_client.close()
+
 # ---------------- Routes ----------------
 @app.get("/")
 async def root():
@@ -26,15 +38,10 @@ async def health():
 
 @app.get("/health/db")
 async def health_db():
-    db_url = os.getenv("DATABASE_URL")
-    if not db_url:
-        raise HTTPException(status_code=500, detail="DATABASE_URL not set")
     try:
-        conn = psycopg2.connect(db_url)
-        with conn.cursor() as cur:
-            cur.execute("SELECT 1;")
-            _ = cur.fetchone()
-        conn.close()
-        return {"db": "ok"}
+        pong = await app.database.command("ping")
+        if pong.get("ok") == 1:
+            return {"db": "ok"}
+        raise HTTPException(status_code=500, detail="db ping failed")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
